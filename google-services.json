@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "957784392432",
+    "project_id": "expo-school-app",
+    "storage_bucket": "expo-school-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:957784392432:android:a495cd13ce259d5a903835",
+        "android_client_info": {
+          "package_name": "com.rayeepradeep.exposchoolapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDfm-qTb4vnPTYxivWcUTlwYCiiw1oDL1c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
