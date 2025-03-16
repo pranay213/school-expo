@@ -1,72 +1,48 @@
-name: iOS Build (React Native Expo)
+name: Build iOS Simulator App
 
 on:
   push:
     branches:
-      - main
-  workflow_dispatch:
+      - main  
+  pull_request:
 
 jobs:
   build-ios:
-    runs-on: macos-latest
+    runs-on: macos-latest  
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Log System Details
+      - name: Install Node.js & Expo CLI
         run: |
-          echo "macOS Version: $(sw_vers -productVersion)"
-          echo "RAM: $(sysctl -n hw.memsize | awk '{print $1/1024/1024/1024 " GB"}')"
-          echo "CPU Cores: $(sysctl -n hw.ncpu)"
-          echo "Disk Space: $(df -h / | tail -1 | awk '{print $4}')"
-      
-      - name: Install Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 'latest'
-          cache: 'yarn'
-
-      - name: Install Yarn
-        run: npm install -g yarn
-
-      - name: Install Expo CLI
-        run: npm install -g expo-cli
-
+          npm install -g expo-cli
+          npm install  
+      - name: Generate iOS Native Files (Only If Missing)
+        run: |
+          if [ ! -d "ios" ]; then
+            expo prebuild --platform ios
+          fi
       - name: Install CocoaPods
-        run: sudo gem install cocoapods
-
-      - name: Install Dependencies
-        run: yarn install
-
-      - name: Prepare iOS Build
         run: |
           cd ios
-          pod install --repo-update
+          pod install
           cd ..
-
-      - name: Build iOS App
-        env:
-          XCODE_WORKSPACE: "ios/YourApp.xcworkspace" # Update this with your workspace name
-          XCODE_SCHEME: "YourApp"  # Update with your app scheme name
+      - name: Build iOS app for Simulator
         run: |
-          cd ios
-          xcodebuild \
-            -workspace "$XCODE_WORKSPACE" \
-            -scheme "$XCODE_SCHEME" \
-            -sdk iphoneos \
-            -configuration Release \
-            -allowProvisioningUpdates \
-            -derivedDataPath build
-          cd ..
-      
-      - name: Archive the Build
+          xcodebuild build \
+            -workspace ios/exposchoolapp.xcworkspace \
+            -scheme exposchoolapp \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            -derivedDataPath ios/build
+      - name: Debug:List Generated Files
         run: |
-          mkdir -p artifacts
-          cp -r ios/build/Build/Products/Release-iphoneos/*.app artifacts/
-          echo "Build archived successfully."
-
-      - name: Upload Build Artifact
+          echo "Listing generated files:"
+          ls -R ios/build/Build/Products/
+      - name: Upload Entire iOS Build Folder
         uses: actions/upload-artifact@v4
         with:
-          name: ios-build
-          path: artifacts/
+          name: ios-build-artifacts
+          path: ios/build/
+          if-no-files-found: warn
