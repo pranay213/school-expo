@@ -1,0 +1,50 @@
+name: Build iOS Development App
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-ios:
+    runs-on: self-hosted  # Use your self-hosted macOS runner
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Install Dependencies
+        run: yarn install
+
+      - name: Convert Expo to Native iOS Project
+        run: expo prebuild --platform ios
+
+      - name: Install CocoaPods Dependencies
+        run: |
+          cd ios
+          pod install
+      - name: Detect Xcode Project
+        id: detect_project
+        run: |
+          cd ios
+          if [ -d "*.xcworkspace" ]; then
+            echo "XCODE_WORKSPACE=$(ls *.xcworkspace | head -n 1)" >> $GITHUB_ENV
+          elif [ -d "*.xcodeproj" ]; then
+            echo "XCODE_PROJECT=$(ls *.xcodeproj | head -n 1)" >> $GITHUB_ENV
+          else
+            echo "No Xcode project found!"
+            exit 1
+          fi
+      - name: Build iOS App for Simulator
+        run: |
+          cd ios
+          if [ -n "$XCODE_WORKSPACE" ]; then
+            xcodebuild -workspace $XCODE_WORKSPACE -scheme $(basename $XCODE_WORKSPACE .xcworkspace) -sdk iphonesimulator -configuration Debug -derivedDataPath build
+          elif [ -n "$XCODE_PROJECT" ]; then
+            xcodebuild -project $XCODE_PROJECT -scheme $(basename $XCODE_PROJECT .xcodeproj) -sdk iphonesimulator -configuration Debug -derivedDataPath build
+          fi
+      - name: Upload iOS App Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ios-app
+          path: ios/build/Build/Products/Debug-iphonesimulator/*.apps
