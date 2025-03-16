@@ -7,14 +7,22 @@ on:
 
 jobs:
   build-ios:
-    runs-on: self-hosted  # Use your self-hosted macOS runner
+    runs-on: macos-latest  # Use GitHub-hosted macOS runner
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
+      - name: Set Up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
       - name: Install Dependencies
-        run: yarn install
+        run: yarn install --frozen-lockfile
+
+      - name: Ensure Expo CLI is Installed
+        run: yarn global add expo-cli
 
       - name: Convert Expo to Native iOS Project
         run: expo prebuild --platform ios
@@ -23,28 +31,41 @@ jobs:
         run: |
           cd ios
           pod install
+
       - name: Detect Xcode Project
         id: detect_project
         run: |
           cd ios
-          if [ -d "*.xcworkspace" ]; then
+          if ls *.xcworkspace 1> /dev/null 2>&1; then
             echo "XCODE_WORKSPACE=$(ls *.xcworkspace | head -n 1)" >> $GITHUB_ENV
-          elif [ -d "*.xcodeproj" ]; then
+            echo "Using workspace: $XCODE_WORKSPACE"
+          elif ls *.xcodeproj 1> /dev/null 2>&1; then
             echo "XCODE_PROJECT=$(ls *.xcodeproj | head -n 1)" >> $GITHUB_ENV
+            echo "Using project: $XCODE_PROJECT"
           else
-            echo "No Xcode project found!"
+            echo "❌ No Xcode workspace or project found!"
             exit 1
           fi
+
       - name: Build iOS App for Simulator
         run: |
           cd ios
           if [ -n "$XCODE_WORKSPACE" ]; then
-            xcodebuild -workspace $XCODE_WORKSPACE -scheme $(basename $XCODE_WORKSPACE .xcworkspace) -sdk iphonesimulator -configuration Debug -derivedDataPath build
+            xcodebuild -workspace "$XCODE_WORKSPACE" \
+              -scheme "$(basename "$XCODE_WORKSPACE" .xcworkspace)" \
+              -sdk iphonesimulator \
+              -configuration Debug \
+              -derivedDataPath build
           elif [ -n "$XCODE_PROJECT" ]; then
-            xcodebuild -project $XCODE_PROJECT -scheme $(basename $XCODE_PROJECT .xcodeproj) -sdk iphonesimulator -configuration Debug -derivedDataPath build
+            xcodebuild -project "$XCODE_PROJECT" \
+              -scheme "$(basename "$XCODE_PROJECT" .xcodeproj)" \
+              -sdk iphonesimulator \
+              -configuration Debug \
+              -derivedDataPath build
           fi
+
       - name: Upload iOS App Artifact
         uses: actions/upload-artifact@v3
         with:
           name: ios-app
-          path: ios/build/Build/Products/Debug-iphonesimulator/*.apps
+          path: ios/build/Build/Products/Debug-iphonesimulator/*.app
