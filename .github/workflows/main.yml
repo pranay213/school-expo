@@ -44,7 +44,7 @@ jobs:
           eas build --platform ios --profile development --local --non-interactive
           
       - name: Upload iOS Build Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ios-build
           path: ./build/**/*.app
