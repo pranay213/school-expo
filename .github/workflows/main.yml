@@ -1,4 +1,4 @@
-name: iOS Development Build
+name: iOS Development Build (Xcode)
 
 on:
   push:
@@ -8,43 +8,63 @@ on:
 
 jobs:
   build-ios:
-    runs-on: macos-latest
+    runs-on: macos-14  # Latest macOS with Xcode 15+
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install Node.js
-        uses: actions/setup-node@v3
+      - name: Install Latest Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: '20'  # Latest LTS version
 
       - name: Install Dependencies
         run: |
-          npm install -g eas-cli
           npm install
 
-      - name: Install Xcode CLI Tools
+      - name: Install Latest CocoaPods
         run: |
-          sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
-          sudo xcodebuild -license accept
-
-      - name: Initialize EAS Project
-        run: |
-          eas init --id=$(uuidgen) || true
-
-      - name: Install CocoaPods
-        run: |
+          sudo gem install cocoapods --no-document
           cd ios
           pod install --silent
           cd ..
 
-      - name: Build iOS Development App Locally
+      - name: Detect Xcode Project Files
+        id: detect_paths
         run: |
-          eas build --platform ios --profile development --local --non-interactive
+          WORKSPACE=$(find ios -name "*.xcworkspace" | head -n 1)
+          PROJECT=$(find ios -name "*.xcodeproj" | head -n 1)
+          SCHEME=$(xcodebuild -list -project $PROJECT | awk '/Schemes:/,/^$/' | tail -n +2 | head -n 1 | tr -d '[:space:]')
           
+          echo "Detected WORKSPACE: $WORKSPACE"
+          echo "Detected PROJECT: $PROJECT"
+          echo "Detected SCHEME: $SCHEME"
+          
+          echo "workspace=$WORKSPACE" >> $GITHUB_ENV
+          echo "project=$PROJECT" >> $GITHUB_ENV
+          echo "scheme=$SCHEME" >> $GITHUB_ENV
+
+      - name: Select Latest Xcode Version
+        run: |
+          sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+          sudo xcodebuild -version
+
+      - name: Build iOS App with Xcode
+        run: |
+          xcodebuild -workspace "$WORKSPACE" \
+                     -scheme "$SCHEME" \
+                     -sdk iphonesimulator \
+                     -configuration Debug \
+                     -derivedDataPath build
+
+      - name: Archive iOS Build Artifact
+        run: |
+          mkdir -p output
+          cp -r build/Build/Products/Debug-iphonesimulator/*.app output/
+
       - name: Upload iOS Build Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ios-build
-          path: ./build/**/*.app
+          path: output/*.app
