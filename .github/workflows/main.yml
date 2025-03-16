@@ -65,7 +65,8 @@ jobs:
           fi
 
       - name: Upload iOS App Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4  # Using the latest version
         with:
           name: ios-app
           path: ios/build/Build/Products/Debug-iphonesimulator/*.app
+          retention-days: 7  # Optional: Keep artifact for 7 days
