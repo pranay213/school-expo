@@ -27,21 +27,35 @@ jobs:
       - name: Convert Expo to Native iOS Project
         run: expo prebuild --platform ios
 
+      - name: Verify iOS Project Files
+        run: |
+          echo "✅ Listing iOS project files:"
+          ls -la ios
+
       - name: Install CocoaPods Dependencies
         run: |
-          cd ios
-          pod install
+          if [ -d "ios" ]; then
+            cd ios
+            pod install
+          else
+            echo "❌ iOS directory not found. Expo prebuild may have failed."
+            exit 1
+          fi
 
       - name: Detect Xcode Project
         id: detect_project
         run: |
           cd ios
+          ls -la  # Print directory contents for debugging
+          
           if ls *.xcworkspace 1> /dev/null 2>&1; then
-            echo "XCODE_WORKSPACE=$(ls *.xcworkspace | head -n 1)" >> $GITHUB_ENV
-            echo "Using workspace: $XCODE_WORKSPACE"
+            WORKSPACE=$(ls *.xcworkspace | head -n 1)
+            echo "XCODE_WORKSPACE=$WORKSPACE" >> $GITHUB_ENV
+            echo "Using workspace: $WORKSPACE"
           elif ls *.xcodeproj 1> /dev/null 2>&1; then
-            echo "XCODE_PROJECT=$(ls *.xcodeproj | head -n 1)" >> $GITHUB_ENV
-            echo "Using project: $XCODE_PROJECT"
+            PROJECT=$(ls *.xcodeproj | head -n 1)
+            echo "XCODE_PROJECT=$PROJECT" >> $GITHUB_ENV
+            echo "Using project: $PROJECT"
           else
             echo "❌ No Xcode workspace or project found!"
             exit 1
