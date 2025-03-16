@@ -43,6 +43,20 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
 
+      - name: Generate exportOptions.plist
+        run: |
+          cat <<EOF > ios/exportOptions.plist
+          {
+            "method": "development",
+            "compileBitcode": false,
+            "destination": "export",
+            "signingStyle": "manual",
+            "signingCertificate": "",
+            "signingTeam": "",
+            "provisioningProfiles": {}
+          }
+          EOF
+
       - name: Export IPA File
         run: |
           mkdir -p ios/build/output
@@ -54,7 +68,7 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
 
-      - name: Debug-List Exported Files
+      - name: Debug: List Exported Files
         run: |
           echo "Listing exported files:"
           ls -R ios/build/output/
