@@ -1,4 +1,4 @@
-name: Build iOS Simulator App
+name: Build iOS IPA
 
 on:
   push:
@@ -18,31 +18,50 @@ jobs:
         run: |
           npm install -g expo-cli
           npm install  
+
       - name: Generate iOS Native Files (Only If Missing)
         run: |
           if [ ! -d "ios" ]; then
             expo prebuild --platform ios
           fi
+
       - name: Install CocoaPods
         run: |
           cd ios
           pod install
           cd ..
-      - name: Build iOS app for Simulator
+
+      - name: Build iOS App for Archive
         run: |
-          xcodebuild build \
+          xcodebuild archive \
             -workspace ios/exposchoolapp.xcworkspace \
             -scheme exposchoolapp \
-            -sdk iphonesimulator \
-            -configuration Debug \
-            -derivedDataPath ios/build
-      - name: Debug:List Generated Files
+            -archivePath ios/build/exposchoolapp.xcarchive \
+            -sdk iphoneos \
+            -configuration Release \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Export IPA File
         run: |
-          echo "Listing generated files:"
-          ls -R ios/build/Build/Products/
-      - name: Upload Entire iOS Build Folder
+          mkdir -p ios/build/output
+          xcodebuild -exportArchive \
+            -archivePath ios/build/exposchoolapp.xcarchive \
+            -exportPath ios/build/output \
+            -exportOptionsPlist ios/exportOptions.plist \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Debug: List Exported Files
+        run: |
+          echo "Listing exported files:"
+          ls -R ios/build/output/
+
+      - name: Upload iOS IPA Build
         uses: actions/upload-artifact@v4
         with:
-          name: ios-build-artifacts
-          path: ios/build/
-          if-no-files-found: warn
+          name: ios-ipa-build
+          path: ios/build/output/
+          if-no-files-found: error
