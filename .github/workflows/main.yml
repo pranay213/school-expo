@@ -54,7 +54,7 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
 
-      - name: Debug: List Exported Files
+      - name: Debug-List Exported Files
         run: |
           echo "Listing exported files:"
           ls -R ios/build/output/
