@@ -1,4 +1,4 @@
-name: iOS Development Build (Xcode)
+name: iOS Build (React Native Expo)
 
 on:
   push:
@@ -8,63 +8,65 @@ on:
 
 jobs:
   build-ios:
-    runs-on: macos-14  # Latest macOS with Xcode 15+
-
+    runs-on: macos-latest
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Latest Node.js
+      - name: Log System Details
+        run: |
+          echo "macOS Version: $(sw_vers -productVersion)"
+          echo "RAM: $(sysctl -n hw.memsize | awk '{print $1/1024/1024/1024 " GB"}')"
+          echo "CPU Cores: $(sysctl -n hw.ncpu)"
+          echo "Disk Space: $(df -h / | tail -1 | awk '{print $4}')"
+      
+      - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'  # Latest LTS version
+          node-version: 'latest'
+          cache: 'yarn'
+
+      - name: Install Yarn
+        run: npm install -g yarn
+
+      - name: Install Expo CLI
+        run: npm install -g expo-cli
+
+      - name: Install CocoaPods
+        run: sudo gem install cocoapods
 
       - name: Install Dependencies
-        run: |
-          npm install
+        run: yarn install
 
-      - name: Install Latest CocoaPods
+      - name: Prepare iOS Build
         run: |
-          sudo gem install cocoapods --no-document
           cd ios
-          pod install --silent
+          pod install --repo-update
           cd ..
 
-      - name: Detect Xcode Project Files
-        id: detect_paths
+      - name: Build iOS App
+        env:
+          XCODE_WORKSPACE: "ios/YourApp.xcworkspace" # Update this with your workspace name
+          XCODE_SCHEME: "YourApp"  # Update with your app scheme name
         run: |
-          WORKSPACE=$(find ios -name "*.xcworkspace" | head -n 1)
-          PROJECT=$(find ios -name "*.xcodeproj" | head -n 1)
-          SCHEME=$(xcodebuild -list -project $PROJECT | awk '/Schemes:/,/^$/' | tail -n +2 | head -n 1 | tr -d '[:space:]')
-          
-          echo "Detected WORKSPACE: $WORKSPACE"
-          echo "Detected PROJECT: $PROJECT"
-          echo "Detected SCHEME: $SCHEME"
-          
-          echo "workspace=$WORKSPACE" >> $GITHUB_ENV
-          echo "project=$PROJECT" >> $GITHUB_ENV
-          echo "scheme=$SCHEME" >> $GITHUB_ENV
-
-      - name: Select Latest Xcode Version
+          cd ios
+          xcodebuild \
+            -workspace "$XCODE_WORKSPACE" \
+            -scheme "$XCODE_SCHEME" \
+            -sdk iphoneos \
+            -configuration Release \
+            -allowProvisioningUpdates \
+            -derivedDataPath build
+          cd ..
+      
+      - name: Archive the Build
         run: |
-          sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
-          sudo xcodebuild -version
+          mkdir -p artifacts
+          cp -r ios/build/Build/Products/Release-iphoneos/*.app artifacts/
+          echo "Build archived successfully."
 
-      - name: Build iOS App with Xcode
-        run: |
-          xcodebuild -workspace "$WORKSPACE" \
-                     -scheme "$SCHEME" \
-                     -sdk iphonesimulator \
-                     -configuration Debug \
-                     -derivedDataPath build
-
-      - name: Archive iOS Build Artifact
-        run: |
-          mkdir -p output
-          cp -r build/Build/Products/Debug-iphonesimulator/*.app output/
-
-      - name: Upload iOS Build Artifact
+      - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ios-build
-          path: output/*.app
+          path: artifacts/
