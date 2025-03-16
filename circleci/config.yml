@@ -1,0 +1,61 @@
+version: 2.1
+
+executors:
+  macos-executor:
+    macos:
+      xcode: 15.0.0  # Change this to the required Xcode version
+    resource_class: macos.m1.medium  # Adjust based on your plan
+
+jobs:
+  build-ios:
+    executor: macos-executor
+
+    steps:
+      - checkout
+
+      - run:
+          name: Install Dependencies
+          command: yarn install
+
+      - run:
+          name: Convert Expo to Native iOS Project
+          command: expo prebuild --platform ios
+
+      - run:
+          name: Install CocoaPods Dependencies
+          command: |
+            cd ios
+            pod install
+
+      - run:
+          name: Detect Xcode Project
+          command: |
+            cd ios
+            if ls *.xcworkspace 1> /dev/null 2>&1; then
+              echo "export XCODE_WORKSPACE=$(ls *.xcworkspace | head -n 1)" >> $BASH_ENV
+            elif ls *.xcodeproj 1> /dev/null 2>&1; then
+              echo "export XCODE_PROJECT=$(ls *.xcodeproj | head -n 1)" >> $BASH_ENV
+            else
+              echo "No Xcode project found!"
+              exit 1
+            fi
+
+      - run:
+          name: Build iOS App for Simulator
+          command: |
+            cd ios
+            if [ -n "$XCODE_WORKSPACE" ]; then
+              xcodebuild -workspace $XCODE_WORKSPACE -scheme $(basename $XCODE_WORKSPACE .xcworkspace) -sdk iphonesimulator -configuration Debug -derivedDataPath build
+            elif [ -n "$XCODE_PROJECT" ]; then
+              xcodebuild -project $XCODE_PROJECT -scheme $(basename $XCODE_PROJECT .xcodeproj) -sdk iphonesimulator -configuration Debug -derivedDataPath build
+            fi
+
+      - store_artifacts:
+          path: ios/build/Build/Products/Debug-iphonesimulator/
+          destination: ios-app
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      - build-ios
